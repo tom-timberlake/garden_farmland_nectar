@@ -2,6 +2,7 @@
 ######################          GARDENS FILL SEASONAL HUNGER GAPS FOR FARMLAND POLLINATORS           ######################################
 ###########################################################################################################################################
 
+# Code updated: 21/08/2024
 
 ##########################
 ## Study background    
@@ -51,7 +52,6 @@ library(patchwork)
 # Set the input and output file paths (Edit these before running)
 input.path <- "INPUT YOUR FILE PATH HERE"
 output.path <- "INPUT YOUR FILE PATH HERE"
-
 
 ## Running code for each of the 3 questions:
 
@@ -645,7 +645,7 @@ CD<- ggplot(cd_month_summary, aes(x=month, y=mean_months, group=treatment, color
                 position=position_dodge(0.2))
 
 #Add correct colour scales etc
-seasonal_colony_density <- CD + scale_colour_manual(values = c("#ee7621ff", "#f5dc83ff",  "#8fa33fff",  "#cdd4dcff"),
+seasonal_colony_density <- CD + scale_colour_manual(values = c("#264653", "#2A9D8F",  "#F4A261","#E76F51"),
                                name="Treatment",
                                labels=c("1) Garden", "2) Garden with pasture phenology", "3) Pasture replacement", "4) No garden"))+
   theme(legend.position = c(0.8, 0.8))
@@ -656,7 +656,7 @@ seasonal_colony_density <- CD + scale_colour_manual(values = c("#ee7621ff", "#f5
 ####################################################################
 
 # Define custom colors
-colours <- c("#ee7621ff", "#f5dc83ff",  "#8fa33fff",  "#cdd4dcff")
+colours <- c("#264653", "#2A9D8F",  "#F4A261","#E76F51") # Other colour scheme option: "#ee7621ff", "#f5dc83ff",  "#8fa33fff",  "#cdd4dcff")
 
 ##Summarising data at the farm-level
 colony_number_farm <- colony_number_max %>% dplyr::group_by(farm, treatment) %>%
@@ -776,8 +776,8 @@ combined_plot <- seasonal_colony_density / (max_colonies | total_bees) / (new_qu
   plot_annotation(tag_levels = 'a') & theme(plot.tag = element_text(size = 14, face = "bold"))
 
 #Save combined plot as a PNG and SVG
-ggsave(plot=combined_plot, filename=file.path(output.path,"BEESTEWARD_model_outputs.png"), width=6, height=8, dpi=500, bg="white")
-ggsave(plot=combined_plot, filename=file.path(output.path,"BEESTEWARD_model_outputs.svg"), width=6, height=8, dpi=500, bg="white")
+ggsave(plot=combined_plot, filename=file.path(output.path,"BEESTEWARD_model_outputs.png"), width=6, height=8, dpi=600, bg="white")
+ggsave(plot=combined_plot, filename=file.path(output.path,"BEESTEWARD_model_outputs.svg"), width=6, height=8, dpi=600, bg="white")
  
 #Bind together summary results and output as csv file
 
@@ -798,10 +798,11 @@ write.csv(all_results, file.path(output.path,"BEESTEWARD_model_result_summary.cs
 ##Reordering factors by name
 colony_density_max$treatment <- factor(colony_density_max$treatment, levels = c("gdn","alt gdn","gdn pasture","no gdn"))
 
-GLMM_CD <- lme(value ~ treatment, random = ~1|farm, method="REML", data = colony_density_max)
-summary(GLMM_CD)
+#Model using GLMM with poisson distribution because of count data
+GLMM_CD <- glmer(value ~ treatment + (1|farm), family="poisson", data = colony_density_max)
 
-#Check model residuals
+# Check for overdispersion and plot model residuals
+dispersion_CD <- sum(residuals(GLMM_CD, type = "pearson")^2) / df.residual(GLMM_CD)
 plot(GLMM_CD)
 
 #Post-hoc test
@@ -825,10 +826,12 @@ pairwise_comparisons_CD_plot <- plot(pairwise_comparisons_CD) +
 #Reordering factors by name
 colony_number_max$treatment <- factor(colony_number_max$treatment, levels = c("gdn","alt gdn","gdn pasture","no gdn"))
 
-GLMM_colony_number <- lme(value ~ treatment, random = ~1|farm, method="REML", data = colony_number_max)
+#Model using GLMM with poisson distribution because of count data
+GLMM_colony_number <- glmer(value ~ treatment + (1|farm), family="poisson",  data = colony_number_max)
 summary(GLMM_colony_number)
 
-#Check model residuals
+# Check for overdispersion and plot model residuals
+dispersion_colony_number <- sum(residuals(GLMM_colony_number, type = "pearson")^2) / df.residual(GLMM_colony_number)
 plot(GLMM_colony_number)
 
 #Post-hoc test
@@ -837,6 +840,7 @@ summary(glht(GLMM_colony_number, emm(pairwise ~ treatment)), test=adjusted(type=
 # Generate pairwise comparisons and plot
 marginal_means_colony_number <- emmeans(GLMM_colony_number, specs = "treatment")
 pairwise_comparisons_colony_number <- pairs(marginal_means_colony_number)
+
 pairwise_comparisons_colony_number_plot <- plot(pairwise_comparisons_colony_number) +
   geom_vline(xintercept = 0, linetype = "dashed") + # Add dashed vertical line at x=0
   #xlim(-4, 4)+ # Specify x axis limits (adjust these limits as needed)
@@ -852,6 +856,7 @@ pairwise_comparisons_colony_number_plot <- plot(pairwise_comparisons_colony_numb
 #Reordering factors by name
 new_queens$treatment <- factor(new_queens$treatment, levels = c("gdn","alt gdn","gdn pasture","no gdn"))
 
+#Model using Linear Mixed Model as data is continuous
 GLMM_new_queens <- lme(value ~ treatment, random = ~1|farm, method="REML", data = new_queens)
 summary(GLMM_new_queens)
 
@@ -864,6 +869,7 @@ summary(glht(GLMM_new_queens, emm(pairwise ~ treatment)), test=adjusted(type="bo
 # Generate pairwise comparisons and plot
 marginal_means_new_queens <- emmeans(GLMM_new_queens, specs = "treatment")
 pairwise_comparisons_new_queens <- pairs(marginal_means_new_queens)
+
 pairwise_comparisons_new_queens_plot <- plot(pairwise_comparisons_new_queens) +
   geom_vline(xintercept = 0, linetype = "dashed") + # Add dashed vertical line at x=0
   #xlim(-4, 4)+ # Specify x axis limits (adjust these limits as needed)
@@ -880,6 +886,7 @@ pairwise_comparisons_new_queens_plot <- plot(pairwise_comparisons_new_queens) +
 #Reordering factors by name
 queen_survival$treatment <- factor(queen_survival$treatment, levels = c("gdn","alt gdn","gdn pasture","no gdn"))
 
+#Model using Linear Mixed Model as data is continuous
 GLMM_queen_survival <- lme(value ~ treatment, random = ~1|farm, method="REML", data = queen_survival)
 summary(GLMM_queen_survival)
 
@@ -892,6 +899,7 @@ summary(glht(GLMM_queen_survival, emm(pairwise ~ treatment)), test=adjusted(type
 # Generate pairwise comparisons and plot
 marginal_means_queen_survival <- emmeans(GLMM_queen_survival, specs = "treatment")
 pairwise_comparisons_queen_survival <- pairs(marginal_means_queen_survival)
+
 pairwise_comparisons_queen_survival_plot <- plot(pairwise_comparisons_queen_survival) +
   geom_vline(xintercept = 0, linetype = "dashed") + # Add dashed vertical line at x=0
   #xlim(-4, 4)+ # Specify x axis limits (adjust these limits as needed)
@@ -903,10 +911,10 @@ pairwise_comparisons_queen_survival_plot <- plot(pairwise_comparisons_queen_surv
 ##### Total bee numbers analysis
 ###################################
 
-##GLMM of max yearly active bee numbers
 #Reordering factors by name
 total_bees_max$treatment <- factor(total_bees_max$treatment, levels = c("gdn","alt gdn","gdn pasture","no gdn"))
 
+#Model using Linear Mixed Model as data is continuous
 GLMM_total_bees <- lme(value ~ treatment, random = ~1|farm, method="REML", data = total_bees_max)
 summary(GLMM_total_bees)
 
@@ -919,6 +927,7 @@ summary(glht(GLMM_total_bees, emm(pairwise ~ treatment)), test=adjusted(type="bo
 # Generate pairwise comparisons and plot
 marginal_means_total_bees <- emmeans(GLMM_total_bees, specs = "treatment")
 pairwise_comparisons_total_bees <- pairs(marginal_means_total_bees)
+
 pairwise_comparisons_total_bees_plot <- plot(pairwise_comparisons_total_bees) +
   geom_vline(xintercept = 0, linetype = "dashed") + # Add dashed vertical line at x=0
   #xlim(-4, 4)+ # Specify x axis limits (adjust these limits as needed)
