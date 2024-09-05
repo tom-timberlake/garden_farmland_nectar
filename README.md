@@ -1,4 +1,4 @@
-This project contains the data and R code used in the manuscript entitled: 'Gardens fill seasonal hunger gaps for farmland pollinators'
+This project contains the data and R code used in the manuscript entitled: 'Gardens reduce seasonal hunger gaps for farmland pollinators'
 
 If all data files and R files listed below are present in the working directory, the code should run from start to finish and generate all of the figures and statistics used in the MS
 
